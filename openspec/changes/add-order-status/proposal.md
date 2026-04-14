@@ -2,15 +2,22 @@
 
 当前订单模型（`Order`）没有状态字段，无法表达订单在其生命周期中的不同阶段（如待付款、已付款、已发货、已完成、已取消等）。缺少状态管理导致业务流程无法闭环，后续的发货、退款、统计等功能均无法建立在状态流转基础上。增加订单状态管理是完善订单模块核心能力的必要一步。
 
+**业务价值：**
+- **对运营人员**：可快速筛选待付款/待发货订单，减少人工判断成本；通过状态流转规范订单履约流程
+- **对终端用户**：能查看订单实时进度（待付款→已付款→已发货→已完成），降低咨询客服的频率
+
 ## What Changes
 
 - 为 `Order` 实体新增 `status` 字段，使用枚举类型 `OrderStatus` 表达状态值
 - 定义标准订单状态枚举：`PENDING_PAYMENT`（待付款）、`PAID`（已付款）、`SHIPPED`（已发货）、`COMPLETED`（已完成）、`CANCELLED`（已取消）
 - 新增订单状态流转 API，支持按业务规则推进订单状态（如确认付款、发货、确认收货、取消订单）
 - 新增按状态筛选订单列表的查询能力
-- 创建订单时默认状态为 `PENDING_PAYMENT`
+- 创建订单时默认状态为 `PENDING_PAYMENT`，客户端传入的 `status` 字段将被忽略
+- 明确通用订单更新接口（`PUT /api/orders/{id}`）不得修改状态，状态变更必须通过专用端点
+- 定义统一错误响应格式，包含错误码、当前状态、请求状态、允许转换列表等上下文信息
 - 更新 JSON 示例数据，为现有订单添加 `status` 字段
-- **BREAKING**：`Order` 响应体新增 `status` 字段，已有的订单列表/详情 API 返回结构发生变化
+- 支持历史数据兼容：缺失 `status` 字段的订单默认视为 `PENDING_PAYMENT`
+- **兼容性变更**：`Order` 响应体新增 `status` 字段。对大多数可忽略未知字段的客户端是兼容的；对严格校验响应结构的客户端，需评估并适配新增字段
 
 ## Capabilities
 
@@ -22,7 +29,28 @@
 
 ## Impact
 
-- **代码**：`order` 包下的 `Order.java`、`OrderService.java`、`OrderController.java`、`OrderRepository.java` 均需修改；新增 `OrderStatus.java` 枚举类
-- **API**：订单相关的所有 GET 接口返回体新增 `status` 字段；新增 `PUT /api/orders/{id}/status` 状态变更端点；`GET /api/orders` 支持 `status` 查询参数
-- **数据**：`orders.json` 示例数据需增加 `status` 字段
-- **前端**：`admin.html` 如需展示订单状态需同步调整（不在本次变更范围内，但需注意兼容性）
+- **代码**：`order` 包下的 `Order.java`、`OrderService.java`、`OrderController.java`、`OrderRepository.java` 均需修改；新增 `OrderStatus.java` 枚举类；可能需要新增异常处理类
+- **API**：
+  - 订单相关的所有 GET 接口返回体新增 `status` 字段
+  - 新增 `PUT /api/orders/{id}/status` 状态变更端点（同时支持 `/order/{id}/status` 风格）
+  - `GET /api/orders` 支持 `status` 查询参数（同时支持 `/order` 和 `/order/list` 风格）
+  - 状态相关接口的 400/404 错误响应将返回结构化 JSON，而非空响应或默认错误页
+- **数据**：`orders.json` 示例数据需增加 `status` 字段；缺失 `status` 的历史数据将被默认处理为 `PENDING_PAYMENT`
+- **前端/客户端**：
+  - API 客户端：需处理响应体新增的 `status` 字段（宽松解析的客户端通常无需改动）
+  - 管理端列表：如需展示订单状态，需同步调整状态文案映射
+  - 测试脚本：如使用严格响应结构校验，需更新预期字段列表
+- **开发者**：新增专用状态端点后，通用更新接口不再承担状态修改职责，需确保调用方使用正确端点
+
+## Scope Boundary
+
+**本期范围内：**
+- 订单主流程五态模型（待付款→已付款→已发货→已完成/已取消）
+- 人工状态流转与筛选
+- 统一错误响应格式
+
+**本期范围外（后续可扩展）：**
+- 自动超时取消机制
+- 退款/售后状态（REFUNDING/REFUNDED 等）
+- 支付系统/物流系统对接
+- 基于角色的权限控制
