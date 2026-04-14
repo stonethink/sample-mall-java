@@ -151,6 +151,64 @@ public class CategoryService {
         return categoryRepository.existsById(id);
     }
 
+    /**
+     * 构建分类的完整路径（如：食品生鲜 > 水果 > 进口水果）
+     */
+    public String buildCategoryPath(String categoryId) {
+        if (categoryId == null || categoryId.isEmpty()) {
+            return "";
+        }
+        
+        Category category = categoryRepository.findById(categoryId).orElse(null);
+        if (category == null) {
+            return "";
+        }
+        
+        List<String> pathNames = new ArrayList<>();
+        Category current = category;
+        
+        while (current != null) {
+            pathNames.add(0, current.getName());
+            if (current.isRoot()) {
+                break;
+            }
+            current = categoryRepository.findById(current.getParentId()).orElse(null);
+        }
+        
+        return String.join(" > ", pathNames);
+    }
+
+    /**
+     * 获取单个分类的 CategoryInfo（包含完整路径）
+     */
+    public CategoryInfo getCategoryInfo(String categoryId) {
+        if (categoryId == null || categoryId.isEmpty()) {
+            return null;
+        }
+        
+        Category category = categoryRepository.findById(categoryId).orElse(null);
+        if (category == null) {
+            return null;
+        }
+        
+        String fullPath = buildCategoryPath(categoryId);
+        return new CategoryInfo(category.getId(), category.getName(), fullPath);
+    }
+
+    /**
+     * 将分类ID列表转换为 CategoryInfo 列表
+     */
+    public List<CategoryInfo> convertToCategoryInfoList(List<String> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        return categoryIds.stream()
+                .map(this::getCategoryInfo)
+                .filter(info -> info != null)
+                .collect(Collectors.toList());
+    }
+
     // 树节点DTO
     public static class CategoryTreeNode {
         private String id;

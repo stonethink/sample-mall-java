@@ -645,7 +645,7 @@
                             <td>${product.sku}</td>
                             <td>
                                 <div class="category-tags">
-                                    ${product.categoryIds ? product.categoryIds.map(catId => `<span class="category-tag">${getCategoryName(catId)}</span>`).join('') : '-'}
+                                    ${product.categories && product.categories.length > 0 ? product.categories.map(cat => `<span class="category-tag" title="${cat.fullPath}">${cat.fullPath}</span>`).join('') : '-'}
                                 </div>
                             </td>
                             <td><span class="badge ${product.stock > 0 ? 'badge-success' : 'badge-warning'}">${product.stock}</span></td>
@@ -662,7 +662,7 @@
                 }
             } catch (error) {
                 showToast('加载商品列表失败: ' + error.message, 'error');
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">加载失败</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state">加载失败</td></tr>';
             } finally {
                 loading.classList.remove('active');
             }
@@ -693,7 +693,7 @@
                             <td>${product.sku}</td>
                             <td>
                                 <div class="category-tags">
-                                    ${product.categoryIds ? product.categoryIds.map(catId => `<span class="category-tag">${getCategoryName(catId)}</span>`).join('') : '-'}
+                                    ${product.categories && product.categories.length > 0 ? product.categories.map(cat => `<span class="category-tag" title="${cat.fullPath}">${cat.fullPath}</span>`).join('') : '-'}
                                 </div>
                             </td>
                             <td><span class="badge ${product.stock > 0 ? 'badge-success' : 'badge-warning'}">${product.stock}</span></td>
@@ -852,7 +852,7 @@
                             <td>${product.sku}</td>
                             <td>
                                 <div class="category-tags">
-                                    ${product.categoryIds ? product.categoryIds.map(catId => `<span class="category-tag">${getCategoryName(catId)}</span>`).join('') : '-'}
+                                    ${product.categories && product.categories.length > 0 ? product.categories.map(cat => `<span class="category-tag" title="${cat.fullPath}">${cat.fullPath}</span>`).join('') : '-'}
                                 </div>
                             </td>
                             <td><span class="badge ${product.stock > 0 ? 'badge-success' : 'badge-warning'}">${product.stock}</span></td>

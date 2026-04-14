@@ -1,6 +1,8 @@
 package com.example.mall.product;
 
+import com.example.mall.category.CategoryInfo;
 import com.example.mall.category.CategoryRepository;
+import com.example.mall.category.CategoryService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,14 +14,22 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final CategoryService categoryService;
 
-    public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository) {
+    public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository, CategoryService categoryService) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
+        this.categoryService = categoryService;
     }
 
     public List<Product> listAll() {
         return productRepository.findAll();
+    }
+
+    public List<ProductWithCategoriesDTO> listAllWithCategories() {
+        return productRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
     public List<Product> listByCategory(String categoryId) {
@@ -31,8 +41,24 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
+    public List<ProductWithCategoriesDTO> listByCategoryWithCategories(String categoryId) {
+        return listByCategory(categoryId).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
     public Optional<Product> findById(Long id) {
         return productRepository.findById(id);
+    }
+
+    public Optional<ProductWithCategoriesDTO> findByIdWithCategories(Long id) {
+        return productRepository.findById(id)
+                .map(this::convertToDTO);
+    }
+
+    private ProductWithCategoriesDTO convertToDTO(Product product) {
+        List<CategoryInfo> categories = categoryService.convertToCategoryInfoList(product.getCategoryIds());
+        return ProductWithCategoriesDTO.fromProduct(product, categories);
     }
 
     public Product create(Product product) {

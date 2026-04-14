@@ -18,24 +18,28 @@ public class ProductController {
     }
 
     @GetMapping
-    public List<Product> listAll() {
-        return productService.listAll();
+    public List<ProductWithCategoriesDTO> listAll() {
+        return productService.listAllWithCategories();
     }
 
     // 对齐 mall-admin：/product/list 查询商品列表
     @GetMapping("/list")
-    public List<Product> list(
+    public List<ProductWithCategoriesDTO> list(
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "categoryId", required = false) String categoryId) {
         if (categoryId != null && !categoryId.isEmpty()) {
-            return productService.listByCategory(categoryId);
+            return productService.listByCategoryWithCategories(categoryId);
         }
-        return productService.searchByName(keyword);
+        // 搜索时返回带分类信息的DTO
+        return productService.searchByName(keyword).stream()
+                .map(p -> productService.findByIdWithCategories(p.getId()).orElse(null))
+                .filter(dto -> dto != null)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getById(@PathVariable Long id) {
-        return productService.findById(id)
+    public ResponseEntity<ProductWithCategoriesDTO> getById(@PathVariable Long id) {
+        return productService.findByIdWithCategories(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
