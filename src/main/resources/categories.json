@@ -1,0 +1,52 @@
+[
+  {
+    "id": "cat-001",
+    "name": "食品生鲜",
+    "parentId": null
+  },
+  {
+    "id": "cat-002",
+    "name": "水果",
+    "parentId": "cat-001"
+  },
+  {
+    "id": "cat-003",
+    "name": "零食",
+    "parentId": "cat-001"
+  },
+  {
+    "id": "cat-004",
+    "name": "图书音像",
+    "parentId": null
+  },
+  {
+    "id": "cat-005",
+    "name": "文学小说",
+    "parentId": "cat-004"
+  },
+  {
+    "id": "cat-006",
+    "name": "计算机书籍",
+    "parentId": "cat-004"
+  },
+  {
+    "id": "cat-007",
+    "name": "日用百货",
+    "parentId": null
+  },
+  {
+    "id": "cat-008",
+    "name": "洗护用品",
+    "parentId": "cat-007"
+  },
+  {
+    "id": "cat-009",
+    "name": "纸品",
+    "parentId": "cat-007"
+  },
+  {
+    "id": "cat-010",
+    "name": "办公文具",
+    "parentId": null
+  }
+]

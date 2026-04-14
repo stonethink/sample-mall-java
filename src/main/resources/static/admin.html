@@ -351,6 +351,58 @@
             display: flex;
             gap: 8px;
         }
+
+        .category-tree {
+            margin-top: 16px;
+        }
+
+        .category-node {
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            background: white;
+        }
+
+        .category-node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .category-children {
+            margin-left: 24px;
+            margin-top: 8px;
+            padding-left: 12px;
+            border-left: 2px solid #e5e7eb;
+        }
+
+        .category-select {
+            min-width: 150px;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .category-select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .category-tags {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .category-tag {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -362,6 +414,7 @@
 
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('products')">商品管理</button>
+            <button class="tab-btn" onclick="switchTab('categories')">分类管理</button>
             <button class="tab-btn" onclick="switchTab('orders')">订单管理</button>
         </div>
 
@@ -374,6 +427,9 @@
                     <input type="text" id="product-search" placeholder="搜索商品名称...">
                     <button class="btn btn-primary" onclick="searchProducts()">搜索</button>
                 </div>
+                <select id="category-filter" class="category-select" onchange="filterByCategory()">
+                    <option value="">所有分类</option>
+                </select>
             </div>
 
             <div id="products-loading" class="loading">加载中...</div>
@@ -384,6 +440,7 @@
                         <th>ID</th>
                         <th>商品名称</th>
                         <th>SKU</th>
+                        <th>分类</th>
                         <th>库存</th>
                         <th>价格(分)</th>
                         <th>价格(元)</th>
@@ -393,6 +450,17 @@
                 <tbody id="products-tbody">
                 </tbody>
             </table>
+        </div>
+
+        <!-- 分类管理 -->
+        <div id="categories-tab" class="tab-content">
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="showCategoryModal()">+ 新增分类</button>
+                <button class="btn" onclick="loadCategories()">刷新</button>
+            </div>
+
+            <div id="categories-loading" class="loading">加载中...</div>
+            <div id="categories-tree" class="category-tree"></div>
         </div>
 
         <!-- 订单管理 -->
@@ -439,6 +507,12 @@
                     <input type="text" id="product-sku" required>
                 </div>
                 <div class="form-group">
+                    <label>分类</label>
+                    <select id="product-categories" class="category-select" multiple size="4">
+                    </select>
+                    <small style="color: #6b7280;">按住 Ctrl 键可选择多个分类</small>
+                </div>
+                <div class="form-group">
                     <label>库存 *</label>
                     <input type="number" id="product-stock" min="0" required>
                 </div>
@@ -449,6 +523,33 @@
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">保存</button>
                     <button type="button" class="btn" onclick="closeProductModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 分类模态框 -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="category-modal-title">新增分类</h2>
+                <span class="close-btn" onclick="closeCategoryModal()">×</span>
+            </div>
+            <form id="category-form">
+                <input type="hidden" id="category-id">
+                <div class="form-group">
+                    <label>分类名称 *</label>
+                    <input type="text" id="category-name" required>
+                </div>
+                <div class="form-group">
+                    <label>父分类</label>
+                    <select id="category-parent" class="category-select">
+                        <option value="">无（作为根分类）</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn" onclick="closeCategoryModal()">取消</button>
                 </div>
             </form>
         </div>
@@ -505,6 +606,9 @@
             
             if (tab === 'products') {
                 loadProducts();
+                loadCategoryFilter();
+            } else if (tab === 'categories') {
+                loadCategories();
             } else if (tab === 'orders') {
                 loadOrders();
             }
@@ -532,13 +636,18 @@
                 const products = await response.json();
                 
                 if (products.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无商品数据</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无商品数据</td></tr>';
                 } else {
                     tbody.innerHTML = products.map(product => `
                         <tr>
                             <td>${product.id}</td>
                             <td>${product.name}</td>
                             <td>${product.sku}</td>
+                            <td>
+                                <div class="category-tags">
+                                    ${product.categoryIds ? product.categoryIds.map(catId => `<span class="category-tag">${getCategoryName(catId)}</span>`).join('') : '-'}
+                                </div>
+                            </td>
                             <td><span class="badge ${product.stock > 0 ? 'badge-success' : 'badge-warning'}">${product.stock}</span></td>
                             <td>${product.price}</td>
                             <td class="price">¥${(product.price / 100).toFixed(2)}</td>
@@ -575,13 +684,18 @@
                 const products = await response.json();
                 
                 if (products.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">未找到匹配的商品</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">未找到匹配的商品</td></tr>';
                 } else {
                     tbody.innerHTML = products.map(product => `
                         <tr>
                             <td>${product.id}</td>
                             <td>${product.name}</td>
                             <td>${product.sku}</td>
+                            <td>
+                                <div class="category-tags">
+                                    ${product.categoryIds ? product.categoryIds.map(catId => `<span class="category-tag">${getCategoryName(catId)}</span>`).join('') : '-'}
+                                </div>
+                            </td>
                             <td><span class="badge ${product.stock > 0 ? 'badge-success' : 'badge-warning'}">${product.stock}</span></td>
                             <td>${product.price}</td>
                             <td class="price">¥${(product.price / 100).toFixed(2)}</td>
@@ -630,11 +744,14 @@
             e.preventDefault();
             
             const id = document.getElementById('product-id').value;
+            const categorySelect = document.getElementById('product-categories');
+            const selectedCategories = Array.from(categorySelect.selectedOptions).map(option => option.value);
             const data = {
                 name: document.getElementById('product-name').value,
                 sku: document.getElementById('product-sku').value,
                 stock: parseInt(document.getElementById('product-stock').value),
-                price: parseInt(document.getElementById('product-price').value)
+                price: parseInt(document.getElementById('product-price').value),
+                categoryIds: selectedCategories
             };
             
             try {
@@ -676,6 +793,125 @@
             }
         }
 
+        // 全局分类缓存
+        let categoriesCache = [];
+        let categoryNameMap = {};
+
+        // 获取分类名称
+        function getCategoryName(categoryId) {
+            return categoryNameMap[categoryId] || categoryId;
+        }
+
+        // 加载分类筛选器
+        async function loadCategoryFilter() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/categories`);
+                const categories = await response.json();
+                categoriesCache = categories;
+                
+                // 构建名称映射
+                categoryNameMap = {};
+                categories.forEach(cat => {
+                    categoryNameMap[cat.id] = cat.name;
+                });
+                
+                // 更新分类筛选下拉框
+                const filterSelect = document.getElementById('category-filter');
+                filterSelect.innerHTML = '<option value="">所有分类</option>';
+                categories.forEach(cat => {
+                    filterSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                });
+            } catch (error) {
+                console.error('加载分类失败:', error);
+            }
+        }
+
+        // 按分类筛选商品
+        async function filterByCategory() {
+            const categoryId = document.getElementById('category-filter').value;
+            const loading = document.getElementById('products-loading');
+            const tbody = document.getElementById('products-tbody');
+            
+            loading.classList.add('active');
+            
+            try {
+                let url = `${API_BASE_URL}/api/products/list`;
+                if (categoryId) {
+                    url += `?categoryId=${categoryId}`;
+                }
+                const response = await fetch(url);
+                const products = await response.json();
+                
+                if (products.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无商品数据</td></tr>';
+                } else {
+                    tbody.innerHTML = products.map(product => `
+                        <tr>
+                            <td>${product.id}</td>
+                            <td>${product.name}</td>
+                            <td>${product.sku}</td>
+                            <td>
+                                <div class="category-tags">
+                                    ${product.categoryIds ? product.categoryIds.map(catId => `<span class="category-tag">${getCategoryName(catId)}</span>`).join('') : '-'}
+                                </div>
+                            </td>
+                            <td><span class="badge ${product.stock > 0 ? 'badge-success' : 'badge-warning'}">${product.stock}</span></td>
+                            <td>${product.price}</td>
+                            <td class="price">¥${(product.price / 100).toFixed(2)}</td>
+                            <td>
+                                <div class="action-btns">
+                                    <button class="btn" onclick="editProduct(${product.id})">编辑</button>
+                                    <button class="btn btn-danger" onclick="deleteProduct(${product.id})">删除</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                showToast('筛选失败: ' + error.message, 'error');
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        // 加载商品分类选择器
+        async function loadProductCategorySelect(selectedIds = []) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/categories`);
+                const categories = await response.json();
+                const select = document.getElementById('product-categories');
+                select.innerHTML = categories.map(cat => 
+                    `<option value="${cat.id}" ${selectedIds.includes(cat.id) ? 'selected' : ''}>${cat.name}</option>`
+                ).join('');
+            } catch (error) {
+                console.error('加载分类选择器失败:', error);
+            }
+        }
+
+        // 修改 showProductModal 函数以加载分类
+        const originalShowProductModal = showProductModal;
+        showProductModal = function(product = null) {
+            const modal = document.getElementById('product-modal');
+            const title = document.getElementById('product-modal-title');
+            
+            if (product) {
+                title.textContent = '编辑商品';
+                document.getElementById('product-id').value = product.id;
+                document.getElementById('product-name').value = product.name;
+                document.getElementById('product-sku').value = product.sku;
+                document.getElementById('product-stock').value = product.stock;
+                document.getElementById('product-price').value = product.price;
+                loadProductCategorySelect(product.categoryIds || []);
+            } else {
+                title.textContent = '新增商品';
+                document.getElementById('product-form').reset();
+                document.getElementById('product-id').value = '';
+                loadProductCategorySelect([]);
+            }
+            
+            modal.classList.add('active');
+        };
+
         async function deleteProduct(id) {
             if (!confirm('确定要删除这个商品吗?')) return;
             
@@ -694,6 +930,163 @@
                 showToast('删除失败: ' + error.message, 'error');
             }
         }
+
+        // ==================== 分类管理 ====================
+
+        async function loadCategories() {
+            const loading = document.getElementById('categories-loading');
+            const treeContainer = document.getElementById('categories-tree');
+            
+            loading.classList.add('active');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/categories/tree`);
+                const tree = await response.json();
+                
+                if (tree.length === 0) {
+                    treeContainer.innerHTML = '<div class="empty-state">暂无分类数据</div>';
+                } else {
+                    treeContainer.innerHTML = renderCategoryTree(tree);
+                }
+            } catch (error) {
+                showToast('加载分类失败: ' + error.message, 'error');
+                treeContainer.innerHTML = '<div class="empty-state">加载失败</div>';
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        function renderCategoryTree(nodes, level = 0) {
+            if (!nodes || nodes.length === 0) return '';
+            
+            return nodes.map(node => `
+                <div class="category-node" style="margin-left: ${level * 20}px">
+                    <div class="category-node-header">
+                        <span><strong>${node.name}</strong> <small style="color: #6b7280;">(${node.id})</small></span>
+                        <div class="action-btns">
+                            <button class="btn" onclick="editCategory('${node.id}', '${node.name}', '${node.parentId || ''}')">编辑</button>
+                            <button class="btn" onclick="showCategoryModal('${node.id}')">+ 子分类</button>
+                            <button class="btn btn-danger" onclick="deleteCategory('${node.id}')">删除</button>
+                        </div>
+                    </div>
+                    ${node.children && node.children.length > 0 ? `
+                        <div class="category-children">
+                            ${renderCategoryTree(node.children, level + 1)}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function loadCategoryParentSelect(excludeId = null) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/categories`);
+                const categories = await response.json();
+                const select = document.getElementById('category-parent');
+                select.innerHTML = '<option value="">无（作为根分类）</option>';
+                categories.forEach(cat => {
+                    if (cat.id !== excludeId) {
+                        select.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                    }
+                });
+            } catch (error) {
+                console.error('加载父分类失败:', error);
+            }
+        }
+
+        function showCategoryModal(parentId = null) {
+            const modal = document.getElementById('category-modal');
+            const title = document.getElementById('category-modal-title');
+            
+            title.textContent = '新增分类';
+            document.getElementById('category-form').reset();
+            document.getElementById('category-id').value = '';
+            loadCategoryParentSelect();
+            
+            if (parentId) {
+                setTimeout(() => {
+                    document.getElementById('category-parent').value = parentId;
+                }, 100);
+            }
+            
+            modal.classList.add('active');
+        }
+
+        function closeCategoryModal() {
+            document.getElementById('category-modal').classList.remove('active');
+            document.getElementById('category-form').reset();
+        }
+
+        async function handleCategorySubmit(e) {
+            e.preventDefault();
+            
+            const id = document.getElementById('category-id').value;
+            const name = document.getElementById('category-name').value;
+            const parentId = document.getElementById('category-parent').value;
+            
+            try {
+                let response;
+                if (id) {
+                    response = await fetch(`${API_BASE_URL}/api/categories/${id}?name=${encodeURIComponent(name)}&parentId=${encodeURIComponent(parentId)}`, {
+                        method: 'PUT'
+                    });
+                } else {
+                    response = await fetch(`${API_BASE_URL}/api/categories?name=${encodeURIComponent(name)}&parentId=${encodeURIComponent(parentId)}`, {
+                        method: 'POST'
+                    });
+                }
+                
+                if (response.ok) {
+                    showToast(id ? '分类更新成功' : '分类创建成功', 'success');
+                    closeCategoryModal();
+                    loadCategories();
+                } else {
+                    const error = await response.json();
+                    showToast(error.error || '操作失败', 'error');
+                }
+            } catch (error) {
+                showToast('操作失败: ' + error.message, 'error');
+            }
+        }
+
+        function editCategory(id, name, parentId) {
+            const modal = document.getElementById('category-modal');
+            const title = document.getElementById('category-modal-title');
+            
+            title.textContent = '编辑分类';
+            document.getElementById('category-id').value = id;
+            document.getElementById('category-name').value = name;
+            loadCategoryParentSelect(id);
+            
+            setTimeout(() => {
+                document.getElementById('category-parent').value = parentId || '';
+            }, 100);
+            
+            modal.classList.add('active');
+        }
+
+        async function deleteCategory(id) {
+            if (!confirm('确定要删除这个分类吗?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showToast('分类删除成功', 'success');
+                    loadCategories();
+                } else {
+                    const error = await response.json();
+                    showToast(error.error || '删除失败', 'error');
+                }
+            } catch (error) {
+                showToast('删除失败: ' + error.message, 'error');
+            }
+        }
+
+        // 绑定分类表单提交事件
+        document.getElementById('category-form').addEventListener('submit', handleCategorySubmit);
 
         // ==================== 订单管理 ====================
 

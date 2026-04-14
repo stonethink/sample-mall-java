@@ -24,7 +24,12 @@ public class ProductController {
 
     // 对齐 mall-admin：/product/list 查询商品列表
     @GetMapping("/list")
-    public List<Product> list(@RequestParam(value = "keyword", required = false) String keyword) {
+    public List<Product> list(
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "categoryId", required = false) String categoryId) {
+        if (categoryId != null && !categoryId.isEmpty()) {
+            return productService.listByCategory(categoryId);
+        }
         return productService.searchByName(keyword);
     }
 
