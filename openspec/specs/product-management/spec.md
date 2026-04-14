@@ -1,19 +1,27 @@
 ## MODIFIED Requirements
 
-### Requirement: Product list supports category filter
-The product list API SHALL support filtering by category ID.
+### Requirement: Product list returns category information with names
+The product list API SHALL return category information including names and full paths, in addition to category IDs.
 
-#### Scenario: Filter products by category
-- **WHEN** user requests product list with categoryId parameter "cat-001"
-- **THEN** system returns only products associated with that category
+#### Scenario: List products with category info
+- **WHEN** user requests product list
+- **THEN** each product includes a "categories" field containing list of CategoryInfo objects
+- **AND** each CategoryInfo contains id, name, and fullPath
+- **AND** the original "categoryIds" field is preserved for backward compatibility
 
-#### Scenario: Filter with non-existent category
-- **WHEN** user requests product list with invalid categoryId
-- **THEN** system returns empty list
+#### Scenario: Product with multiple categories shows all paths
+- **WHEN** a product belongs to categories "食品生鲜 > 水果" and "进口商品"
+- **THEN** the categories field contains both CategoryInfo objects with their respective full paths
 
-### Requirement: Product details include categories
-The product details SHALL include associated category information.
+#### Scenario: Product with no categories
+- **WHEN** a product has no category associations
+- **THEN** the categories field is an empty list
+- **AND** the categoryIds field is null or empty
 
-#### Scenario: Get product with categories
-- **WHEN** user requests product details for product with categories
-- **THEN** system returns product data including categoryIds and category names
+### Requirement: Product details include category information
+The product detail API SHALL return category information with names and full paths.
+
+#### Scenario: Get product details with categories
+- **WHEN** user requests product details by ID
+- **THEN** the response includes categories field with CategoryInfo list
+- **AND** each CategoryInfo shows the full path from root to the category
