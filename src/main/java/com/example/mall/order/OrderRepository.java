@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 @Repository
 public class OrderRepository {
@@ -50,6 +51,12 @@ public class OrderRepository {
         return new ArrayList<>(store.values());
     }
 
+    public List<Order> findByStatus(OrderStatus status) {
+        return store.values().stream()
+                .filter(order -> order.getStatus() == status)
+                .collect(Collectors.toList());
+    }
+
     public Optional<Order> findById(Long id) {
         return Optional.ofNullable(store.get(id));
     }
@@ -60,6 +67,10 @@ public class OrderRepository {
         }
         if (order.getCreatedAt() == null) {
             order.setCreatedAt(LocalDateTime.now());
+        }
+        // 兼容性处理：对缺失 status 的订单默认设置为 PENDING_PAYMENT
+        if (order.getStatus() == null) {
+            order.setStatus(OrderStatus.PENDING_PAYMENT);
         }
         store.put(order.getId(), order);
         return order;

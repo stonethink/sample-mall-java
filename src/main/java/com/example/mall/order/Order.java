@@ -10,6 +10,7 @@ public class Order {
     private List<Long> productIds;
     private Integer totalAmount;
     private LocalDateTime createdAt;
+    private OrderStatus status;
 
     public Order() {
     }
@@ -20,6 +21,15 @@ public class Order {
         this.productIds = productIds;
         this.totalAmount = totalAmount;
         this.createdAt = createdAt;
+    }
+
+    public Order(Long id, String orderSn, List<Long> productIds, Integer totalAmount, LocalDateTime createdAt, OrderStatus status) {
+        this.id = id;
+        this.orderSn = orderSn;
+        this.productIds = productIds;
+        this.totalAmount = totalAmount;
+        this.createdAt = createdAt;
+        this.status = status;
     }
 
     public Long getId() {
@@ -60,5 +70,13 @@ public class Order {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public OrderStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(OrderStatus status) {
+        this.status = status;
     }
 }
