@@ -352,6 +352,17 @@
             color: #4b5563;
         }
 
+        .login-modal {
+            z-index: 3000;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+
         .price {
             font-weight: 600;
             color: #1a1a1a;
@@ -418,8 +429,16 @@
 <body>
     <div class="container">
         <header>
-            <h1>商城管理后台</h1>
-            <p>Sample Mall - 企业AI Coding 示例电商平台项目</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>商城管理后台</h1>
+                    <p>Sample Mall - 企业AI Coding 示例电商平台项目</p>
+                </div>
+                <div class="user-info" id="user-info" style="display: none;">
+                    <span id="current-user-display"></span>
+                    <button class="btn" onclick="logout()">退出登录</button>
+                </div>
+            </div>
         </header>
 
         <div class="tabs">
@@ -566,6 +585,28 @@
         </div>
     </div>
 
+    <!-- 登录模态框 -->
+    <div id="login-modal" class="modal login-modal active">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>用户登录</h2>
+            </div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label>用户名 *</label>
+                    <input type="text" id="login-username" required placeholder="请输入用户名">
+                </div>
+                <div class="form-group">
+                    <label>密码 *</label>
+                    <input type="password" id="login-password" required placeholder="请输入密码">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">登录</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- 订单模态框 -->
     <div id="order-modal" class="modal">
         <div class="modal-content">
@@ -603,14 +644,137 @@
     <script>
         const API_BASE_URL = window.location.origin;
 
-        // 初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            loadProducts();
+        let currentUser = null;
+
+        // 页面加载时检查登录状态
+        async function checkAuth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    currentUser = await response.json();
+                    showApp();
+                } else {
+                    showLogin();
+                }
+            } catch (error) {
+                showLogin();
+            }
+        }
+
+        function showLogin() {
+            document.getElementById('login-modal').classList.add('active');
+            document.getElementById('user-info').style.display = 'none';
+        }
+
+        function showApp() {
+            document.getElementById('login-modal').classList.remove('active');
+            document.getElementById('user-info').style.display = 'flex';
+            document.getElementById('current-user-display').textContent =
+                `当前用户: ${currentUser.nickname || currentUser.username} (${currentUser.role === 'ADMIN' ? '管理员' : '普通用户'})`;
+
+            renderTabsByRole();
+            updateOrderTableHeader();
+
             document.getElementById('product-form').addEventListener('submit', handleProductSubmit);
             document.getElementById('order-form').addEventListener('submit', handleOrderSubmit);
+            document.getElementById('login-form').addEventListener('submit', handleLoginSubmit);
             document.getElementById('product-search').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') searchProducts();
             });
+
+            loadProducts();
+            loadCategoryFilter();
+        }
+
+        function renderTabsByRole() {
+            const tabsContainer = document.querySelector('.tabs');
+            const isAdmin = currentUser && currentUser.role === 'ADMIN';
+
+            let tabsHtml = `
+                <button class="tab-btn active" onclick="switchTab('products')">商品管理</button>
+                <button class="tab-btn" onclick="switchTab('categories')">分类管理</button>
+                <button class="tab-btn" onclick="switchTab('orders')">订单管理</button>
+            `;
+            if (isAdmin) {
+                tabsHtml += `<button class="tab-btn" onclick="switchTab('users')">用户管理</button>`;
+            }
+            tabsContainer.innerHTML = tabsHtml;
+        }
+
+        function updateOrderTableHeader() {
+            const isAdmin = currentUser && currentUser.role === 'ADMIN';
+            const thead = document.querySelector('#orders-table thead tr');
+            if (isAdmin) {
+                thead.innerHTML = `
+                    <th>ID</th>
+                    <th>订单号</th>
+                    <th>商品ID</th>
+                    <th>总金额(元)</th>
+                    <th>状态</th>
+                    <th>下单用户</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                `;
+            } else {
+                thead.innerHTML = `
+                    <th>ID</th>
+                    <th>订单号</th>
+                    <th>商品ID</th>
+                    <th>总金额(元)</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                `;
+            }
+        }
+
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            const data = {
+                username: document.getElementById('login-username').value,
+                password: document.getElementById('login-password').value
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/users/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    currentUser = await response.json();
+                    showToast('登录成功', 'success');
+                    showApp();
+                } else {
+                    const error = await response.json();
+                    showToast(error.message || '登录失败', 'error');
+                }
+            } catch (error) {
+                showToast('登录失败: ' + error.message, 'error');
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch(`${API_BASE_URL}/api/users/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                currentUser = null;
+                showToast('已退出登录', 'info');
+                location.reload();
+            } catch (error) {
+                showToast('退出失败: ' + error.message, 'error');
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
         });
 
         // 切换标签页
