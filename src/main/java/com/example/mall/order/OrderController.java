@@ -1,9 +1,12 @@
 package com.example.mall.order;
 
+import com.example.mall.user.User;
+import com.example.mall.user.UserRole;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpSession;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -21,22 +24,35 @@ public class OrderController {
     }
 
     @GetMapping
-    public ResponseEntity<?> listAll(@RequestParam(required = false) String status) {
+    public ResponseEntity<?> listAll(@RequestParam(required = false) String status, HttpSession session) {
+        User currentUser = getCurrentUser(session);
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "UNAUTHORIZED", "message", "请先登录"));
+        }
+
+        List<Order> orders;
         if (status != null) {
-            // 验证状态值是否有效（空字符串也视为无效）
             OrderStatus orderStatus = parseOrderStatus(status);
             if (orderStatus == null) {
                 return buildInvalidStatusResponse(status);
             }
-            return ResponseEntity.ok(orderService.listByStatus(orderStatus));
+            orders = orderService.listByStatus(orderStatus);
+        } else {
+            orders = orderService.listAll();
         }
-        return ResponseEntity.ok(orderService.listAll());
+
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            orders = orders.stream()
+                    .filter(o -> currentUser.getId().equals(o.getUserId()))
+                    .collect(Collectors.toList());
+        }
+        return ResponseEntity.ok(orders);
     }
 
-    // 对齐 mall-admin：/order/list 查询订单列表
     @GetMapping("/list")
-    public ResponseEntity<?> list(@RequestParam(required = false) String status) {
-        return listAll(status);
+    public ResponseEntity<?> list(@RequestParam(required = false) String status, HttpSession session) {
+        return listAll(status, session);
     }
 
     @GetMapping("/{id}")
@@ -47,8 +63,10 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<Order> create(@RequestBody Order order) {
-        Order created = orderService.create(order);
+    public ResponseEntity<?> create(@RequestBody Order order, HttpSession session) {
+        User currentUser = getCurrentUser(session);
+        Long userId = currentUser != null ? currentUser.getId() : null;
+        Order created = orderService.create(order, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -126,6 +144,10 @@ public class OrderController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         orderService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private User getCurrentUser(HttpSession session) {
+        return (User) session.getAttribute("currentUser");
     }
 
     /**
