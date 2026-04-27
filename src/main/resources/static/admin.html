@@ -517,6 +517,33 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- 用户管理 -->
+        <div id="users-tab" class="tab-content">
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="showUserModal()">+ 新增用户</button>
+                <button class="btn" onclick="loadUsers()">刷新</button>
+            </div>
+
+            <div id="users-loading" class="loading">加载中...</div>
+            
+            <table id="users-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户名</th>
+                        <th>昵称</th>
+                        <th>手机号</th>
+                        <th>邮箱</th>
+                        <th>角色</th>
+                        <th>注册时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="users-tbody">
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- 商品模态框 -->
@@ -636,6 +663,50 @@
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">提交订单</button>
                     <button type="button" class="btn" onclick="closeOrderModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 用户模态框 -->
+    <div id="user-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="user-modal-title">新增用户</h2>
+                <span class="close-btn" onclick="closeUserModal()">×</span>
+            </div>
+            <form id="user-form">
+                <input type="hidden" id="user-id">
+                <div class="form-group">
+                    <label>用户名 *</label>
+                    <input type="text" id="user-username" required>
+                </div>
+                <div class="form-group">
+                    <label>密码 *</label>
+                    <input type="password" id="user-password" required>
+                </div>
+                <div class="form-group">
+                    <label>昵称</label>
+                    <input type="text" id="user-nickname">
+                </div>
+                <div class="form-group">
+                    <label>手机号</label>
+                    <input type="text" id="user-phone">
+                </div>
+                <div class="form-group">
+                    <label>邮箱</label>
+                    <input type="email" id="user-email">
+                </div>
+                <div class="form-group">
+                    <label>角色</label>
+                    <select id="user-role" class="category-select">
+                        <option value="USER">普通用户</option>
+                        <option value="ADMIN">管理员</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn" onclick="closeUserModal()">取消</button>
                 </div>
             </form>
         </div>
@@ -791,6 +862,8 @@
                 loadCategories();
             } else if (tab === 'orders') {
                 loadOrders();
+            } else if (tab === 'users') {
+                loadUsers();
             }
         }
 
@@ -1273,18 +1346,31 @@
         async function loadOrders() {
             const loading = document.getElementById('orders-loading');
             const tbody = document.getElementById('orders-tbody');
+            const isAdmin = currentUser && currentUser.role === 'ADMIN';
             
             loading.classList.add('active');
             
             try {
-                const response = await fetch(`${API_BASE_URL}/api/orders`);
+                const response = await fetch(`${API_BASE_URL}/api/orders`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        showToast('请先登录', 'error');
+                        showLogin();
+                        return;
+                    }
+                }
+                
                 const orders = await response.json();
                 
                 if (orders.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无订单数据</td></tr>';
+                    tbody.innerHTML = `<tr><td colspan="${isAdmin ? 8 : 7}" class="empty-state">暂无订单数据</td></tr>`;
                 } else {
                     tbody.innerHTML = orders.map(order => {
                         const statusBadge = getOrderStatusBadge(order.status);
+                        const userCell = isAdmin ? `<td>${order.userId || '未关联'}</td>` : '';
                         return `
                         <tr>
                             <td>${order.id}</td>
@@ -1292,6 +1378,7 @@
                             <td>${order.productIds.join(', ')}</td>
                             <td class="price">¥${(order.totalAmount / 100).toFixed(2)}</td>
                             <td>${statusBadge}</td>
+                            ${userCell}
                             <td>${new Date(order.createdAt).toLocaleString('zh-CN')}</td>
                             <td>
                                 <button class="btn btn-danger" onclick="deleteOrder(${order.id})">删除</button>
@@ -1301,7 +1388,7 @@
                 }
             } catch (error) {
                 showToast('加载订单列表失败: ' + error.message, 'error');
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">加载失败</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="${isAdmin ? 8 : 7}" class="empty-state">加载失败</td></tr>`;
             } finally {
                 loading.classList.remove('active');
             }
@@ -1375,7 +1462,8 @@
             
             try {
                 const response = await fetch(`${API_BASE_URL}/api/orders/${id}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    credentials: 'include'
                 });
                 
                 if (response.ok) {
@@ -1388,6 +1476,158 @@
                 showToast('删除失败: ' + error.message, 'error');
             }
         }
+
+        // ==================== 用户管理 ====================
+
+        async function loadUsers() {
+            const loading = document.getElementById('users-loading');
+            const tbody = document.getElementById('users-tbody');
+            
+            loading.classList.add('active');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/users`, {
+                    credentials: 'include'
+                });
+                const users = await response.json();
+                
+                if (users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无用户数据</td></tr>';
+                } else {
+                    tbody.innerHTML = users.map(user => {
+                        const roleBadge = user.role === 'ADMIN' 
+                            ? '<span class="badge badge-info">管理员</span>' 
+                            : '<span class="badge badge-secondary">普通用户</span>';
+                        return `
+                            <tr>
+                                <td>${user.id}</td>
+                                <td>${user.username}</td>
+                                <td>${user.nickname || '-'}</td>
+                                <td>${user.phone || '-'}</td>
+                                <td>${user.email || '-'}</td>
+                                <td>${roleBadge}</td>
+                                <td>${new Date(user.createdAt).toLocaleString('zh-CN')}</td>
+                                <td>
+                                    <div class="action-btns">
+                                        <button class="btn" onclick="editUser(${user.id}, '${user.username}', '${user.nickname || ''}', '${user.phone || ''}', '${user.email || ''}', '${user.role}')">编辑</button>
+                                        <button class="btn btn-danger" onclick="deleteUser(${user.id})">删除</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                showToast('加载用户列表失败: ' + error.message, 'error');
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state">加载失败</td></tr>';
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        function showUserModal(user = null) {
+            const modal = document.getElementById('user-modal');
+            const title = document.getElementById('user-modal-title');
+            
+            if (user) {
+                title.textContent = '编辑用户';
+                document.getElementById('user-id').value = user.id;
+                document.getElementById('user-username').value = user.username;
+                document.getElementById('user-password').value = '';
+                document.getElementById('user-nickname').value = user.nickname || '';
+                document.getElementById('user-phone').value = user.phone || '';
+                document.getElementById('user-email').value = user.email || '';
+                document.getElementById('user-role').value = user.role;
+            } else {
+                title.textContent = '新增用户';
+                document.getElementById('user-form').reset();
+                document.getElementById('user-id').value = '';
+            }
+            
+            modal.classList.add('active');
+        }
+
+        function closeUserModal() {
+            document.getElementById('user-modal').classList.remove('active');
+            document.getElementById('user-form').reset();
+        }
+
+        async function handleUserSubmit(e) {
+            e.preventDefault();
+            
+            const id = document.getElementById('user-id').value;
+            const data = {
+                username: document.getElementById('user-username').value,
+                password: document.getElementById('user-password').value,
+                nickname: document.getElementById('user-nickname').value,
+                phone: document.getElementById('user-phone').value,
+                email: document.getElementById('user-email').value,
+                role: document.getElementById('user-role').value
+            };
+            
+            try {
+                let response;
+                if (id) {
+                    const updateData = {
+                        nickname: data.nickname,
+                        phone: data.phone,
+                        email: data.email,
+                        role: data.role
+                    };
+                    response = await fetch(`${API_BASE_URL}/api/users/${id}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(updateData),
+                        credentials: 'include'
+                    });
+                } else {
+                    response = await fetch(`${API_BASE_URL}/api/users/register`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(data),
+                        credentials: 'include'
+                    });
+                }
+                
+                if (response.ok) {
+                    showToast(id ? '用户更新成功' : '用户创建成功', 'success');
+                    closeUserModal();
+                    loadUsers();
+                } else {
+                    const error = await response.json();
+                    showToast(error.message || '操作失败', 'error');
+                }
+            } catch (error) {
+                showToast('操作失败: ' + error.message, 'error');
+            }
+        }
+
+        function editUser(id, username, nickname, phone, email, role) {
+            showUserModal({ id, username, nickname, phone, email, role });
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('确定要删除这个用户吗?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/users/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    showToast('用户删除成功', 'success');
+                    loadUsers();
+                } else {
+                    showToast('删除失败', 'error');
+                }
+            } catch (error) {
+                showToast('删除失败: ' + error.message, 'error');
+            }
+        }
+
+        // 绑定用户表单提交事件
+        document.getElementById('user-form').addEventListener('submit', handleUserSubmit);
     </script>
 </body>
 </html>
