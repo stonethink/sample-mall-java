@@ -11,6 +11,7 @@ public class Order {
     private Integer totalAmount;
     private LocalDateTime createdAt;
     private OrderStatus status;
+    private Long userId;
 
     public Order() {
     }
@@ -78,5 +79,13 @@ public class Order {
 
     public void setStatus(OrderStatus status) {
         this.status = status;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 }

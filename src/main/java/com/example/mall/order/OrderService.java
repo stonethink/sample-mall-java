@@ -28,8 +28,13 @@ public class OrderService {
     }
 
     public Order create(Order order) {
+        return create(order, null);
+    }
+
+    public Order create(Order order, Long userId) {
         // 强制设置订单状态为待付款，忽略客户端传入的状态
         order.setStatus(OrderStatus.PENDING_PAYMENT);
+        order.setUserId(userId);
         return orderRepository.save(order);
     }
 
