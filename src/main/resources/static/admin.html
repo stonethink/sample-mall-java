@@ -750,7 +750,6 @@
 
             document.getElementById('product-form').addEventListener('submit', handleProductSubmit);
             document.getElementById('order-form').addEventListener('submit', handleOrderSubmit);
-            document.getElementById('login-form').addEventListener('submit', handleLoginSubmit);
             document.getElementById('product-search').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') searchProducts();
             });
@@ -845,6 +844,7 @@
 
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('login-form').addEventListener('submit', handleLoginSubmit);
             checkAuth();
         });
 
