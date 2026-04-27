@@ -1,6 +1,7 @@
 package com.example.mall.user;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.springframework.stereotype.Repository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.core.io.ClassPathResource;
@@ -13,6 +14,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+@Repository
 public class UserRepository {
 
     private final ConcurrentHashMap<Long, User> store = new ConcurrentHashMap<>();
