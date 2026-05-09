@@ -452,6 +452,17 @@
         .profile-readonly p:last-child {
             margin-bottom: 0;
         }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-not_started { background: #e5e7eb; color: #374151; }
+        .status-preheating { background: #fef3c7; color: #92400e; }
+        .status-active { background: #d1fae5; color: #065f46; }
+        .status-ended { background: #fee2e2; color: #991b1b; }
     </style>
 </head>
 <body>
@@ -596,6 +607,40 @@
                     <button type="submit" class="btn btn-primary">修改密码</button>
                 </form>
             </div>
+        </div>
+
+        <!-- 促销管理 -->
+        <div id="promotions-tab" class="tab-content">
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="showPromotionModal()">+ 新增活动</button>
+                <select id="promotion-status-filter" class="category-select" onchange="loadPromotions()">
+                    <option value="">全部状态</option>
+                    <option value="NOT_STARTED">未开始</option>
+                    <option value="PREHEATING">预热中</option>
+                    <option value="ACTIVE">进行中</option>
+                    <option value="ENDED">已结束</option>
+                </select>
+                <button class="btn" onclick="loadPromotions()">刷新</button>
+            </div>
+
+            <div id="promotions-loading" class="loading">加载中...</div>
+            
+            <table id="promotions-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>活动名称</th>
+                        <th>类型</th>
+                        <th>状态</th>
+                        <th>开始时间</th>
+                        <th>结束时间</th>
+                        <th>启用</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="promotions-tbody">
+                </tbody>
+            </table>
         </div>
 
         <!-- 用户管理 -->
@@ -857,6 +902,7 @@
             document.getElementById('order-form').addEventListener('submit', handleOrderSubmit);
             document.getElementById('profile-form').addEventListener('submit', handleProfileSubmit);
             document.getElementById('password-form').addEventListener('submit', handlePasswordSubmit);
+            document.getElementById('promotion-form').addEventListener('submit', handlePromotionSubmit);
             document.getElementById('product-search').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') searchProducts();
             });
@@ -877,6 +923,7 @@
             `;
             if (isAdmin) {
                 tabsHtml += `<button class="tab-btn" onclick="switchTab('users')">用户管理</button>`;
+                tabsHtml += `<button class="tab-btn" onclick="switchTab('promotions')">促销管理</button>`;
             }
             tabsContainer.innerHTML = tabsHtml;
         }
@@ -974,6 +1021,8 @@
                 loadUsers();
             } else if (tab === 'profile') {
                 loadProfile();
+            } else if (tab === 'promotions') {
+                loadPromotions();
             }
         }
 
@@ -984,6 +1033,176 @@
             toast.textContent = message;
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
+        }
+
+        // ==================== 促销管理 ====================
+
+        async function loadPromotions() {
+            const loading = document.getElementById('promotions-loading');
+            const tbody = document.getElementById('promotions-tbody');
+            const statusFilter = document.getElementById('promotion-status-filter').value;
+            
+            loading.classList.add('active');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/promotions`, {
+                    credentials: 'include'
+                });
+                let promotions = await response.json();
+                
+                if (statusFilter) {
+                    promotions = promotions.filter(p => p.status === statusFilter);
+                }
+                
+                if (promotions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无活动数据</td></tr>';
+                } else {
+                    tbody.innerHTML = promotions.map(p => {
+                        const statusClass = 'status-' + p.status.toLowerCase();
+                        const statusText = {
+                            'NOT_STARTED': '未开始',
+                            'PREHEATING': '预热中',
+                            'ACTIVE': '进行中',
+                            'ENDED': '已结束'
+                        }[p.status] || p.status;
+                        return `
+                            <tr>
+                                <td>${p.id}</td>
+                                <td>${p.name}</td>
+                                <td>${p.type === 'FULL_REDUCTION' ? '满减' : p.type}</td>
+                                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                                <td>${new Date(p.startTime).toLocaleString('zh-CN')}</td>
+                                <td>${new Date(p.endTime).toLocaleString('zh-CN')}</td>
+                                <td>${p.enabled ? '✅' : '❌'}</td>
+                                <td>
+                                    <div class="action-btns">
+                                        <button class="btn" onclick="editPromotion(${p.id}, '${p.name}', '${p.description || ''}', '${p.type}', '${p.preheatTime || ''}', '${p.startTime}', '${p.endTime}', '${(p.productIds || []).join(',')}', ${p.priority}, ${p.enabled})">编辑</button>
+                                        <button class="btn" onclick="togglePromotion(${p.id}, ${p.enabled})">${p.enabled ? '禁用' : '启用'}</button>
+                                        <button class="btn btn-danger" onclick="deletePromotion(${p.id})">删除</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                showToast('加载活动列表失败: ' + error.message, 'error');
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state">加载失败</td></tr>';
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        function showPromotionModal(promotion = null) {
+            const modal = document.getElementById('promotion-modal');
+            const title = document.getElementById('promotion-modal-title');
+            
+            if (promotion) {
+                title.textContent = '编辑活动';
+                document.getElementById('promotion-id').value = promotion.id;
+                document.getElementById('promotion-name').value = promotion.name;
+                document.getElementById('promotion-description').value = promotion.description || '';
+                document.getElementById('promotion-type').value = promotion.type;
+                document.getElementById('promotion-preheatTime').value = promotion.preheatTime ? new Date(promotion.preheatTime).toISOString().slice(0, 16) : '';
+                document.getElementById('promotion-startTime').value = new Date(promotion.startTime).toISOString().slice(0, 16);
+                document.getElementById('promotion-endTime').value = new Date(promotion.endTime).toISOString().slice(0, 16);
+                document.getElementById('promotion-productIds').value = (promotion.productIds || []).join(',');
+                document.getElementById('promotion-priority').value = promotion.priority;
+                document.getElementById('promotion-enabled').value = String(promotion.enabled);
+            } else {
+                title.textContent = '新增活动';
+                document.getElementById('promotion-form').reset();
+                document.getElementById('promotion-id').value = '';
+                document.getElementById('promotion-type').value = 'FULL_REDUCTION';
+                document.getElementById('promotion-enabled').value = 'true';
+                document.getElementById('promotion-priority').value = '0';
+            }
+            modal.classList.add('active');
+        }
+
+        function closePromotionModal() {
+            document.getElementById('promotion-modal').classList.remove('active');
+        }
+
+        function editPromotion(id, name, description, type, preheatTime, startTime, endTime, productIds, priority, enabled) {
+            showPromotionModal({ id, name, description, type, preheatTime, startTime, endTime, productIds: productIds ? productIds.split(',').map(Number) : [], priority, enabled });
+        }
+
+        async function handlePromotionSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('promotion-id').value;
+            const productIdsStr = document.getElementById('promotion-productIds').value;
+            const data = {
+                name: document.getElementById('promotion-name').value,
+                description: document.getElementById('promotion-description').value,
+                type: document.getElementById('promotion-type').value,
+                preheatTime: document.getElementById('promotion-preheatTime').value || null,
+                startTime: document.getElementById('promotion-startTime').value,
+                endTime: document.getElementById('promotion-endTime').value,
+                productIds: productIdsStr ? productIdsStr.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n)) : [],
+                priority: parseInt(document.getElementById('promotion-priority').value) || 0,
+                enabled: document.getElementById('promotion-enabled').value === 'true'
+            };
+            
+            try {
+                const url = id ? `${API_BASE_URL}/api/promotions/${id}` : `${API_BASE_URL}/api/promotions`;
+                const method = id ? 'PUT' : 'POST';
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    showToast(id ? '活动更新成功' : '活动创建成功', 'success');
+                    closePromotionModal();
+                    loadPromotions();
+                } else {
+                    showToast(result.message || '操作失败', 'error');
+                }
+            } catch (error) {
+                showToast('操作失败: ' + error.message, 'error');
+            }
+        }
+
+        async function togglePromotion(id, currentlyEnabled) {
+            const action = currentlyEnabled ? 'disable' : 'enable';
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/promotions/${id}/${action}`, {
+                    method: 'PUT',
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    showToast(currentlyEnabled ? '活动已禁用' : '活动已启用', 'success');
+                    loadPromotions();
+                } else {
+                    const result = await response.json();
+                    showToast(result.message || '操作失败', 'error');
+                }
+            } catch (error) {
+                showToast('操作失败: ' + error.message, 'error');
+            }
+        }
+
+        async function deletePromotion(id) {
+            if (!confirm('确定要删除这个活动吗? 关联的规则也将被删除。')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/promotions/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    showToast('活动删除成功', 'success');
+                    loadPromotions();
+                } else {
+                    const result = await response.json();
+                    showToast(result.message || '删除失败', 'error');
+                }
+            } catch (error) {
+                showToast('删除失败: ' + error.message, 'error');
+            }
         }
 
         // ==================== 商品管理 ====================
@@ -1862,5 +2081,67 @@
             }
         });
     </script>
+
+    <!-- 活动模态框 -->
+    <div id="promotion-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="promotion-modal-title">新增活动</h3>
+                <button class="modal-close" onclick="closePromotionModal()">&times;</button>
+            </div>
+            <form id="promotion-form">
+                <input type="hidden" id="promotion-id">
+                <div class="form-group">
+                    <label>活动名称 *</label>
+                    <input type="text" id="promotion-name" required minlength="2" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label>活动描述</label>
+                    <input type="text" id="promotion-description" maxlength="200">
+                </div>
+                <div class="form-group">
+                    <label>类型</label>
+                    <select id="promotion-type" class="category-select">
+                        <option value="FULL_REDUCTION">满减</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>预热时间</label>
+                        <input type="datetime-local" id="promotion-preheatTime">
+                    </div>
+                    <div class="form-group">
+                        <label>开始时间 *</label>
+                        <input type="datetime-local" id="promotion-startTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label>结束时间 *</label>
+                        <input type="datetime-local" id="promotion-endTime" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>参与商品ID（逗号分隔，留空=全场通用）</label>
+                    <input type="text" id="promotion-productIds" placeholder="例如: 1,2,3">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>优先级</label>
+                        <input type="number" id="promotion-priority" value="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>启用状态</label>
+                        <select id="promotion-enabled" class="category-select">
+                            <option value="true">启用</option>
+                            <option value="false">禁用</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn" onclick="closePromotionModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
