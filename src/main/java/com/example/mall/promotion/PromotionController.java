@@ -17,9 +17,11 @@ import java.util.Map;
 public class PromotionController {
 
     private final PromotionService promotionService;
+    private final FullReductionRuleService ruleService;
 
-    public PromotionController(PromotionService promotionService) {
+    public PromotionController(PromotionService promotionService, FullReductionRuleService ruleService) {
         this.promotionService = promotionService;
+        this.ruleService = ruleService;
     }
 
     @GetMapping
@@ -78,6 +80,7 @@ public class PromotionController {
         if (!isAdmin(session)) {
             return buildErrorResponse("FORBIDDEN", "权限不足，需要管理员角色");
         }
+        ruleService.findByPromotionId(id).forEach(r -> ruleService.deleteRule(r.getId()));
         promotionService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -107,6 +110,28 @@ public class PromotionController {
             return ResponseEntity.ok(promotion);
         } catch (IllegalArgumentException e) {
             return buildErrorResponse("PROMOTION_NOT_FOUND", e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/rules")
+    public ResponseEntity<?> listRules(@PathVariable Long id, HttpSession session) {
+        if (!isAdmin(session)) {
+            return buildErrorResponse("FORBIDDEN", "权限不足，需要管理员角色");
+        }
+        List<FullReductionRule> rules = ruleService.findByPromotionId(id);
+        return ResponseEntity.ok(rules);
+    }
+
+    @PostMapping("/{id}/rules/batch")
+    public ResponseEntity<?> batchSetRules(@PathVariable Long id, @RequestBody List<FullReductionRule> rules, HttpSession session) {
+        if (!isAdmin(session)) {
+            return buildErrorResponse("FORBIDDEN", "权限不足，需要管理员角色");
+        }
+        try {
+            ruleService.batchSetRules(id, rules);
+            return ResponseEntity.ok(ruleService.findByPromotionId(id));
+        } catch (IllegalArgumentException e) {
+            return buildErrorResponse("INVALID_RULE", e.getMessage());
         }
     }
 
