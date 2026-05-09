@@ -63,4 +63,42 @@ public class UserService {
     public void delete(Long id) {
         userRepository.deleteById(id);
     }
+
+    public User updateProfile(Long userId, User updated) {
+        User existing = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在, id=" + userId));
+        if (updated.getNickname() != null) {
+            existing.setNickname(updated.getNickname());
+        }
+        if (updated.getPhone() != null) {
+            existing.setPhone(updated.getPhone());
+        }
+        if (updated.getEmail() != null) {
+            existing.setEmail(updated.getEmail());
+        }
+        return userRepository.save(existing);
+    }
+
+    public User changePassword(Long userId, String oldPassword, String newPassword) {
+        User existing = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在, id=" + userId));
+        if (!existing.getPassword().equals(oldPassword)) {
+            throw new IllegalArgumentException("旧密码错误");
+        }
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new IllegalArgumentException("新密码长度不能少于6位");
+        }
+        existing.setPassword(newPassword);
+        return userRepository.save(existing);
+    }
+
+    public User resetPassword(Long userId, String newPassword) {
+        User existing = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在, id=" + userId));
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new IllegalArgumentException("新密码长度不能少于6位");
+        }
+        existing.setPassword(newPassword);
+        return userRepository.save(existing);
+    }
 }
