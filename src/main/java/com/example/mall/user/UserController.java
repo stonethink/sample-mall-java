@@ -62,6 +62,58 @@ public class UserController {
         return ResponseEntity.ok(maskPassword(user));
     }
 
+    @PutMapping("/me")
+    public ResponseEntity<?> updateProfile(@RequestBody User user, HttpSession session) {
+        User currentUser = (User) session.getAttribute("currentUser");
+        if (currentUser == null) {
+            return buildErrorResponse("UNAUTHORIZED", "请先登录");
+        }
+        try {
+            User updated = userService.updateProfile(currentUser.getId(), user);
+            session.setAttribute("currentUser", updated);
+            return ResponseEntity.ok(maskPassword(updated));
+        } catch (IllegalArgumentException e) {
+            return buildErrorResponse("USER_NOT_FOUND", e.getMessage());
+        }
+    }
+
+    @PostMapping("/me/password")
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> request, HttpSession session) {
+        User currentUser = (User) session.getAttribute("currentUser");
+        if (currentUser == null) {
+            return buildErrorResponse("UNAUTHORIZED", "请先登录");
+        }
+        String oldPassword = request.get("oldPassword");
+        String newPassword = request.get("newPassword");
+        if (oldPassword == null || newPassword == null) {
+            return buildErrorResponse("INVALID_REQUEST", "旧密码和新密码不能为空");
+        }
+        try {
+            User updated = userService.changePassword(currentUser.getId(), oldPassword, newPassword);
+            session.setAttribute("currentUser", updated);
+            return ResponseEntity.ok(maskPassword(updated));
+        } catch (IllegalArgumentException e) {
+            return buildErrorResponse("PASSWORD_ERROR", e.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/reset-password")
+    public ResponseEntity<?> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> request, HttpSession session) {
+        if (!isAdmin(session)) {
+            return buildErrorResponse("FORBIDDEN", "权限不足，需要管理员角色");
+        }
+        String newPassword = request.get("newPassword");
+        if (newPassword == null) {
+            return buildErrorResponse("INVALID_REQUEST", "新密码不能为空");
+        }
+        try {
+            User updated = userService.resetPassword(id, newPassword);
+            return ResponseEntity.ok(maskPassword(updated));
+        } catch (IllegalArgumentException e) {
+            return buildErrorResponse("USER_NOT_FOUND", e.getMessage());
+        }
+    }
+
     @GetMapping
     public ResponseEntity<?> listAll(HttpSession session) {
         if (!isAdmin(session)) {
