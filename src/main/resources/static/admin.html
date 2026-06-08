@@ -1460,25 +1460,43 @@
             return categoryNameMap[categoryId] || categoryId;
         }
 
-        // 加载分类筛选器
+        // 递归渲染带层级缩进的分类选项
+        function renderCategoryOptions(nodes, depth, selectedIds) {
+            let html = '';
+            nodes.forEach(node => {
+                const prefix = depth > 0 ? '\u3000'.repeat(depth) + '├─ ' : '';
+                const selected = selectedIds.includes(node.id) ? 'selected' : '';
+                html += `<option value="${node.id}" ${selected}>${prefix}${node.name}</option>`;
+                if (node.children && node.children.length > 0) {
+                    html += renderCategoryOptions(node.children, depth + 1, selectedIds);
+                }
+            });
+            return html;
+        }
+
+        // 递归遍历树构建名称映射
+        function flattenCategoryTree(nodes) {
+            nodes.forEach(node => {
+                categoryNameMap[node.id] = node.name;
+                if (node.children && node.children.length > 0) {
+                    flattenCategoryTree(node.children);
+                }
+            });
+        }
+
+        // 加载分类筛选器（按层级显示）
         async function loadCategoryFilter() {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/categories`);
-                const categories = await response.json();
-                categoriesCache = categories;
+                const response = await fetch(`${API_BASE_URL}/api/categories/tree`);
+                const tree = await response.json();
                 
-                // 构建名称映射
+                // 更新名称映射
                 categoryNameMap = {};
-                categories.forEach(cat => {
-                    categoryNameMap[cat.id] = cat.name;
-                });
+                flattenCategoryTree(tree);
                 
-                // 更新分类筛选下拉框
+                // 更新分类筛选下拉框（带层级）
                 const filterSelect = document.getElementById('category-filter');
-                filterSelect.innerHTML = '<option value="">所有分类</option>';
-                categories.forEach(cat => {
-                    filterSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
-                });
+                filterSelect.innerHTML = '<option value="">所有分类</option>' + renderCategoryOptions(tree, 0, []);
             } catch (error) {
                 console.error('加载分类失败:', error);
             }
@@ -1532,15 +1550,13 @@
             }
         }
 
-        // 加载商品分类选择器
+        // 加载商品分类选择器（按层级显示）
         async function loadProductCategorySelect(selectedIds = []) {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/categories`);
-                const categories = await response.json();
+                const response = await fetch(`${API_BASE_URL}/api/categories/tree`);
+                const tree = await response.json();
                 const select = document.getElementById('product-categories');
-                select.innerHTML = categories.map(cat => 
-                    `<option value="${cat.id}" ${selectedIds.includes(cat.id) ? 'selected' : ''}>${cat.name}</option>`
-                ).join('');
+                select.innerHTML = renderCategoryOptions(tree, 0, selectedIds);
             } catch (error) {
                 console.error('加载分类选择器失败:', error);
             }

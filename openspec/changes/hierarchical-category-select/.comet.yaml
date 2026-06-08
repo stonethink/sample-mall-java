@@ -1,0 +1,17 @@
+workflow: full
+phase: verify
+build_mode: subagent-driven-development
+build_pause: null
+isolation: branch
+verify_mode: light
+base_ref: 9ecccaf0763b40948c87294cb6ffcf1647e34e20
+design_doc: docs/superpowers/specs/2026-04-14-hierarchical-category-select-design.md
+plan: docs/superpowers/plans/2026-04-14-hierarchical-category-select.md
+verify_result: pending
+verification_report: null
+branch_status: pending
+created_at: 2026-06-08
+verified_at: null
+archived: false
+handoff_context: openspec/changes/hierarchical-category-select/.comet/handoff/design-context.json
+handoff_hash: ceda94537a365513c8e9568dbdb31e2bfab2e3afed10b5029f7f23162c9e65fb
