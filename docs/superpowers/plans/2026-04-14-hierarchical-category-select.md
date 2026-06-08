@@ -2,6 +2,7 @@
 change: hierarchical-category-select
 design-doc: docs/superpowers/specs/2026-04-14-hierarchical-category-select-design.md
 base-ref: 9ecccaf0763b40948c87294cb6ffcf1647e34e20
+archived-with: 2026-06-08-hierarchical-category-select
 ---
 
 # 分类选择器层级显示 — 实施计划

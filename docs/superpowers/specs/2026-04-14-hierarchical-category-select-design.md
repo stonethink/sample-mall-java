@@ -2,6 +2,8 @@
 comet_change: hierarchical-category-select
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-06-08-hierarchical-category-select
+status: final
 ---
 
 # 分类选择器层级显示 — 技术设计
