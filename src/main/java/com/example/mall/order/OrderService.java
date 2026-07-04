@@ -1,7 +1,10 @@
 package com.example.mall.order;
 
+import com.example.mall.product.Product;
+import com.example.mall.product.ProductRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -10,21 +13,62 @@ import java.util.stream.Collectors;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final ProductRepository productRepository;
 
     public OrderService(OrderRepository orderRepository) {
+        this(orderRepository, null);
+    }
+
+    public OrderService(OrderRepository orderRepository, ProductRepository productRepository) {
         this.orderRepository = orderRepository;
+        this.productRepository = productRepository;
     }
 
     public List<Order> listAll() {
         return orderRepository.findAll();
     }
 
+    public List<OrderWithProductsDTO> listAllWithProducts() {
+        return orderRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
     public List<Order> listByStatus(OrderStatus status) {
         return orderRepository.findByStatus(status);
     }
 
+    public List<OrderWithProductsDTO> listByStatusWithProducts(OrderStatus status) {
+        return orderRepository.findByStatus(status).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
     public Optional<Order> findById(Long id) {
         return orderRepository.findById(id);
+    }
+
+    public Optional<OrderWithProductsDTO> findByIdWithProducts(Long id) {
+        return orderRepository.findById(id)
+                .map(this::convertToDTO);
+    }
+
+    private OrderWithProductsDTO convertToDTO(Order order) {
+        List<ProductInfo> productInfos = new ArrayList<>();
+        if (order.getProductIds() != null && productRepository != null) {
+            for (Long productId : order.getProductIds()) {
+                ProductInfo info = new ProductInfo();
+                info.setId(productId);
+                Optional<Product> product = productRepository.findById(productId);
+                if (product.isPresent()) {
+                    info.setName(product.get().getName());
+                } else {
+                    info.setName("商品已下架或不存在");
+                }
+                productInfos.add(info);
+            }
+        }
+        return OrderWithProductsDTO.fromOrder(order, productInfos);
     }
 
     public Order create(Order order) {
