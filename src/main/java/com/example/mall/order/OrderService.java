@@ -2,6 +2,7 @@ package com.example.mall.order;
 
 import com.example.mall.product.Product;
 import com.example.mall.product.ProductRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -19,6 +20,7 @@ public class OrderService {
         this(orderRepository, null);
     }
 
+    @Autowired
     public OrderService(OrderRepository orderRepository, ProductRepository productRepository) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
