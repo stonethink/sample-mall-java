@@ -545,7 +545,7 @@
                     <tr>
                         <th>ID</th>
                         <th>订单号</th>
-                        <th>商品ID</th>
+                        <th>商品名称</th>
                         <th>总金额(元)</th>
                         <th>状态</th>
                         <th>创建时间</th>
@@ -935,7 +935,7 @@
                 thead.innerHTML = `
                     <th>ID</th>
                     <th>订单号</th>
-                    <th>商品ID</th>
+                    <th>商品名称</th>
                     <th>总金额(元)</th>
                     <th>状态</th>
                     <th>下单用户</th>
@@ -946,7 +946,7 @@
                 thead.innerHTML = `
                     <th>ID</th>
                     <th>订单号</th>
-                    <th>商品ID</th>
+                    <th>商品名称</th>
                     <th>总金额(元)</th>
                     <th>状态</th>
                     <th>创建时间</th>
@@ -1796,7 +1796,7 @@
                         <tr>
                             <td>${order.id}</td>
                             <td>${order.orderSn}</td>
-                            <td>${order.productIds.join(', ')}</td>
+                            <td>${order.products && order.products.length > 0 ? order.products.map(p => p.name).join(', ') : '-'}</td>
                             <td class="price">¥${(order.totalAmount / 100).toFixed(2)}</td>
                             <td>${statusBadge}</td>
                             ${userCell}
