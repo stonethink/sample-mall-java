@@ -31,15 +31,15 @@ public class OrderController {
                     .body(Map.of("error", "UNAUTHORIZED", "message", "请先登录"));
         }
 
-        List<Order> orders;
+        List<OrderWithProductsDTO> orders;
         if (status != null) {
             OrderStatus orderStatus = parseOrderStatus(status);
             if (orderStatus == null) {
                 return buildInvalidStatusResponse(status);
             }
-            orders = orderService.listByStatus(orderStatus);
+            orders = orderService.listByStatusWithProducts(orderStatus);
         } else {
-            orders = orderService.listAll();
+            orders = orderService.listAllWithProducts();
         }
 
         if (currentUser.getRole() != UserRole.ADMIN) {
@@ -56,8 +56,8 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Order> getById(@PathVariable Long id) {
-        return orderService.findById(id)
+    public ResponseEntity<?> getById(@PathVariable Long id) {
+        return orderService.findByIdWithProducts(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
