@@ -7,6 +7,7 @@ public class OrderWithProductsDTO {
     private Long id;
     private String orderSn;
     private List<ProductInfo> products;
+    private List<Long> productIds;
     private Integer totalAmount;
     private LocalDateTime createdAt;
     private OrderStatus status;
@@ -20,6 +21,7 @@ public class OrderWithProductsDTO {
         dto.setId(order.getId());
         dto.setOrderSn(order.getOrderSn());
         dto.setProducts(products);
+        dto.setProductIds(order.getProductIds());
         dto.setTotalAmount(order.getTotalAmount());
         dto.setCreatedAt(order.getCreatedAt());
         dto.setStatus(order.getStatus());
@@ -49,6 +51,14 @@ public class OrderWithProductsDTO {
 
     public void setProducts(List<ProductInfo> products) {
         this.products = products;
+    }
+
+    public List<Long> getProductIds() {
+        return productIds;
+    }
+
+    public void setProductIds(List<Long> productIds) {
+        this.productIds = productIds;
     }
 
     public Integer getTotalAmount() {
