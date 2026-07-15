@@ -15,11 +15,13 @@ public class CategoryService {
 
     private static final int MAX_DEPTH = 5;
 
-    @Autowired
-    private CategoryRepository categoryRepository;
+    private final CategoryRepository categoryRepository;
+    private final ProductRepository productRepository;
 
-    @Autowired
-    private ProductRepository productRepository;
+    public CategoryService(CategoryRepository categoryRepository, ProductRepository productRepository) {
+        this.categoryRepository = categoryRepository;
+        this.productRepository = productRepository;
+    }
 
     public Category createCategory(String name, String parentId) {
         // 检查同级分类名称是否重复
