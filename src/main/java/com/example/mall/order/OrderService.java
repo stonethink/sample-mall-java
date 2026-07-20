@@ -116,4 +116,45 @@ public class OrderService {
     public void delete(Long id) {
         orderRepository.deleteById(id);
     }
+
+    /**
+     * 获取用于导出的订单列表，已按权限过滤
+     * @param status 状态筛选（可选）
+     * @param currentUserId 当前用户 ID（用于非管理员过滤）
+     * @param isAdmin 是否为管理员
+     * @return 权限过滤后的订单 DTO 列表
+     */
+    public List<OrderWithProductsDTO> getOrdersForExport(String status, Long currentUserId, boolean isAdmin) {
+        List<OrderWithProductsDTO> orders;
+        if (status != null && !status.isEmpty()) {
+            OrderStatus orderStatus = parseOrderStatus(status);
+            if (orderStatus == null) {
+                return java.util.Collections.emptyList();
+            }
+            orders = listByStatusWithProducts(orderStatus);
+        } else {
+            orders = listAllWithProducts();
+        }
+
+        if (!isAdmin && currentUserId != null) {
+            return orders.stream()
+                    .filter(o -> currentUserId.equals(o.getUserId()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        return orders;
+    }
+
+    /**
+     * 解析状态字符串为 OrderStatus 枚举
+     */
+    private OrderStatus parseOrderStatus(String status) {
+        if (status == null || status.isEmpty()) {
+            return null;
+        }
+        try {
+            return OrderStatus.valueOf(status);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
 }

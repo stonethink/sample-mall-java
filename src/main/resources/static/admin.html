@@ -536,6 +536,7 @@
             <div class="toolbar">
                 <button class="btn btn-primary" onclick="showOrderModal()">+ 新增订单</button>
                 <button class="btn" onclick="loadOrders()">刷新</button>
+                <button class="btn btn-primary" onclick="exportOrders()" style="background: #10b981; border-color: #10b981;">导出Excel</button>
             </div>
 
             <div id="orders-loading" class="loading">加载中...</div>
@@ -1895,6 +1896,33 @@
                 }
             } catch (error) {
                 showToast('删除失败: ' + error.message, 'error');
+            }
+        }
+
+        async function exportOrders() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/orders/export`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    showToast(error.message || '导出失败', 'error');
+                    return;
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'orders_export.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+                showToast('导出成功', 'success');
+            } catch (error) {
+                showToast('导出失败: ' + error.message, 'error');
             }
         }
 

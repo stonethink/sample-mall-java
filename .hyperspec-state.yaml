@@ -1,0 +1,19 @@
+version: 1
+active_change: order-export-excel
+phase: apply
+checkpoint: verified
+project_profile:
+  languages: [java]
+  frameworks: [spring-boot, springfox]
+  build_tool: maven
+  compile_command: mvn compile
+  test_command: mvn test
+  structure: single-module
+  has_ci: false
+  knowledge_graph:
+    codegraph_indexed: true
+    codegraph_tool_reachable: false
+    codegraph_available: false
+    graphify_indexed: false
+    graphify_tool_reachable: false
+    graphify_available: false

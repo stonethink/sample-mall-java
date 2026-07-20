@@ -2,7 +2,9 @@ package com.example.mall.order;
 
 import com.example.mall.user.User;
 import com.example.mall.user.UserRole;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +23,34 @@ public class OrderController {
 
     public OrderController(OrderService orderService) {
         this.orderService = orderService;
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<?> export(@RequestParam(required = false) String status, HttpSession session) {
+        User currentUser = getCurrentUser(session);
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "UNAUTHORIZED", "message", "请先登录"));
+        }
+
+        boolean isAdmin = currentUser.getRole() == UserRole.ADMIN;
+        List<OrderWithProductsDTO> orders = orderService.getOrdersForExport(status, currentUser.getId(), isAdmin);
+
+        try {
+            OrderExcelExporter exporter = new OrderExcelExporter();
+            byte[] excelBytes = exporter.exportToByteArray(orders);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            headers.set(HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename=\"orders_export.xlsx\"");
+
+            return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "EXPORT_FAILED", "message", "导出失败: " + e.getMessage()));
+        }
     }
 
     @GetMapping
